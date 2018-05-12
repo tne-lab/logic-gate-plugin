@@ -105,7 +105,7 @@ private:
     bool input1gate;
     bool input2gate;
     int logicOp;
-    int ouputChan;
+    int outputChan;
     int window;
     Array<EventSources> sources;
 

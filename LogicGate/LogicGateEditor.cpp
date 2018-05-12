@@ -201,21 +201,38 @@ void LogicGateEditor::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
         if (comboBoxThatHasChanged->getSelectedId() - 1 > 0)
             m_input2Selected = comboBoxThatHasChanged->getSelectedId() - 1;
         else
-            m_input2Selected = 1;    }
+            m_input2Selected = 1;
+    }
     else if (comboBoxThatHasChanged == logicSelector)
     {
         processor->setLogicOp((float) comboBoxThatHasChanged->getSelectedId()-1);
         if (comboBoxThatHasChanged->getSelectedId() - 1 > 0)
             m_logicOp = comboBoxThatHasChanged->getSelectedId() - 1;
         else
-            m_logicOp = 1;    }
+            m_logicOp = 1;
+    }
     else if (comboBoxThatHasChanged == outputChans)
     {
         processor->setOutput((float) comboBoxThatHasChanged->getSelectedId()-1);
         if (comboBoxThatHasChanged->getSelectedId() - 1 > 0)
             m_outputChan = comboBoxThatHasChanged->getSelectedId() - 1;
         else
-            m_outputChan = 1;    }
+            m_outputChan = 1;
+    }
+
+    if (m_logicOp == 3)
+    {
+        input2Selector->setVisible(false);
+        input2Label->setVisible(false);
+        gate2Button->setVisible(false);
+    }
+    else
+    {
+        input2Selector->setVisible(true);
+        input2Label->setVisible(true);
+        gate2Button->setVisible(true);
+    }
+
 }
 
 void LogicGateEditor::labelTextChanged (Label* labelThatHasChanged)
@@ -230,7 +247,7 @@ void LogicGateEditor::labelTextChanged (Label* labelThatHasChanged)
     }
     else
     {
-        CoreServices::sendStatusMessage("Selected values must be greater than 0!");
+        CoreServices::sendStatusMessage("Selected values must be greater or equal than 0!");
         labelThatHasChanged->setText("", dontSendNotification);
     }
 }

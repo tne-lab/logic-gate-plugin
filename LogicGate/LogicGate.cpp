@@ -41,7 +41,7 @@
 LogicGate::LogicGate()
     : GenericProcessor ("Logic Gate"),
       logicOp(0),
-      ouputChan(0),
+      outputChan(0),
       window(DEF_WINDOW),
       input1(-1),
       input2(-1),
@@ -132,7 +132,7 @@ void LogicGate::setLogicOp(int op)
 }
 void LogicGate::setOutput(int out)
 {
-    ouputChan = out;
+    outputChan = out;
 }
 void LogicGate::setWindow(int win)
 {
@@ -148,30 +148,58 @@ void LogicGate::process (AudioSampleBuffer& buffer)
 
     switch (logicOp)
     {
-    case 0: //AND
-        if (m_timePassed > window)
+    case 0:
+        //AND: as soon as AND is true send TTL output
+        if (m_timePassed < window)
         {
             if (A && B)
             {
-                std::cout << "AND condition satisfied: resetting input" << std::endl;
-                A = false;
-                B = false;
+                std::cout << "AND condition satisfied ";
+                int64 timestamp = CoreServices::getGlobalTimestamp();
+                setTimestampAndSamples(timestamp, 0);
+                uint8 ttlData = 1 << outputChan;
+                const EventChannel* chan = getEventChannel(getEventChannelIndex(0, getNodeId()));
+                TTLEventPtr event = TTLEvent::createTTLEvent(chan, timestamp, &ttlData, sizeof(uint8), outputChan);
+                addEvent(chan, event, 0);
+
+                if ((input1gate == input2gate))
+                {
+                    std::cout << "resetting input" << std::endl;
+                    A = false;
+                    B = false;
+                }
+                else if (!input1gate)
+                {
+                    std::cout << "resetting A" << std::endl;
+                    A = false;
+                }
+                else if (!input2gate)
+                {
+                    std::cout << "resetting B" << std::endl;
+                    B = false;
+                }
             }
-            else
-            {
-                A = false;
-                B = false;
-//                std::cout << "Window time elapsed: resetting input" << std::endl;
-            }
+        }
+        else
+        {
+            A = false;
+            B = false;
         }
         break;
 
-    case 1: //OR
+    case 1:
+        //OR: if OR is true send TTL at the end of thw window
         if (m_timePassed > window)
         {
             if (A || B)
             {
                 std::cout << "OR condition satisfied: resetting input" << std::endl;
+                int64 timestamp = CoreServices::getGlobalTimestamp();
+                setTimestampAndSamples(timestamp, 0);
+                uint8 ttlData = 1 << outputChan;
+                const EventChannel* chan = getEventChannel(getEventChannelIndex(0, getNodeId()));
+                TTLEventPtr event = TTLEvent::createTTLEvent(chan, timestamp, &ttlData, sizeof(uint8), outputChan);
+                addEvent(chan, event, 0);
                 A = false;
                 B = false;
             }
@@ -184,12 +212,20 @@ void LogicGate::process (AudioSampleBuffer& buffer)
         }
         break;
 
-    case 2: //XOR
+    case 2:
+        //XOR: if XOR is true send TTL at the end of thw window
         if (m_timePassed > window)
         {
             if (A != B)
             {
                 std::cout << "XOR condition satisfied: resetting input" << std::endl;
+                int64 timestamp = CoreServices::getGlobalTimestamp();
+                setTimestampAndSamples(timestamp, 0);
+                uint8 ttlData = 1 << outputChan;
+                const EventChannel* chan = getEventChannel(getEventChannelIndex(0, getNodeId()));
+                TTLEventPtr event = TTLEvent::createTTLEvent(chan, timestamp, &ttlData, sizeof(uint8), outputChan);
+                addEvent(chan, event, 0);
+
                 A = false;
                 B = false;
             }
@@ -214,6 +250,13 @@ void LogicGate::process (AudioSampleBuffer& buffer)
             if (A)
             {
                 std::cout << "DELAY A" << std::endl;
+                int64 timestamp = CoreServices::getGlobalTimestamp();
+                setTimestampAndSamples(timestamp, 0);
+                uint8 ttlData = 1 << outputChan;
+                const EventChannel* chan = getEventChannel(getEventChannelIndex(0, getNodeId()));
+                TTLEventPtr event = TTLEvent::createTTLEvent(chan, timestamp, &ttlData, sizeof(uint8), outputChan);
+                addEvent(chan, event, 0);
+
                 A = false;
             }
             m_previousTime = Time::currentTimeMillis();

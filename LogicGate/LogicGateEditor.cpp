@@ -49,6 +49,11 @@ LogicGateEditor::LogicGateEditor(GenericProcessor* parentNode, bool useDefaultPa
     logicSelector->setBounds(220,50,70,20);
     logicSelector->addListener(this);
 
+    logic_op.add("AND");
+    logic_op.add("OR");
+    logic_op.add("XOR");
+    logic_op.add("DELAY");
+
     for (int i = 0; i < 4; i++)
         logicSelector->addItem(logic_op[i], i+1);
     logicSelector->setSelectedId(1, dontSendNotification);

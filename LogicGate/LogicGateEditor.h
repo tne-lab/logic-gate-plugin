@@ -48,8 +48,10 @@ public:
     void buttonEvent(Button* button);
     void comboBoxChanged(ComboBox* c);
 
+
 private:
-    String logic_op[4] = {"AND", "OR", "XOR", "DELAY"};
+    Array<String> logic_op;
+//    String logic_op[4] = {"AND", "OR", "XOR", "DELAY"};
 
     int m_input1Selected;
     int m_input2Selected;

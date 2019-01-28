@@ -176,17 +176,14 @@ void LogicGateEditor::updateSettings()
     if (m_input1Selected > input1Selector->getNumItems())
     {
         m_input1Selected = input1Selector->getNumItems();
-        input1Selector->setSelectedId(m_input1Selected);
     }
-    else
-        input1Selector->setSelectedId(m_input1Selected);
+    input1Selector->setSelectedId(m_input1Selected);
+
     if (m_input2Selected > input2Selector->getNumItems())
     {
         m_input2Selected = input2Selector->getNumItems();
-        input2Selector->setSelectedId(m_input2Selected);
     }
-    else
-        input2Selector->setSelectedId(m_input2Selected);
+    input2Selector->setSelectedId(m_input2Selected);
 }
 
 void LogicGateEditor::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
@@ -195,49 +192,41 @@ void LogicGateEditor::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
     if (comboBoxThatHasChanged == input1Selector)
     {
         processor->setInput1(comboBoxThatHasChanged->getSelectedId() - 2);
-        if (comboBoxThatHasChanged->getSelectedId() - 1 > 0)
-            m_input1Selected = comboBoxThatHasChanged->getSelectedId() - 1;
+        if (comboBoxThatHasChanged->getSelectedId() > 0)
+            m_input1Selected = comboBoxThatHasChanged->getSelectedId();
         else
             m_input1Selected = 1;
     }
     else if (comboBoxThatHasChanged == input2Selector)
     {
         processor->setInput2(comboBoxThatHasChanged->getSelectedId() - 2);
-        if (comboBoxThatHasChanged->getSelectedId() - 1 > 0)
-            m_input2Selected = comboBoxThatHasChanged->getSelectedId() - 1;
+        if (comboBoxThatHasChanged->getSelectedId() > 0)
+            m_input2Selected = comboBoxThatHasChanged->getSelectedId();
         else
             m_input2Selected = 1;
     }
     else if (comboBoxThatHasChanged == logicSelector)
     {
-        processor->setLogicOp((float) comboBoxThatHasChanged->getSelectedId()-1);
-        if (comboBoxThatHasChanged->getSelectedId() - 1 > 0)
-            m_logicOp = comboBoxThatHasChanged->getSelectedId() - 1;
+        int newLogicOp = comboBoxThatHasChanged->getSelectedId() - 1;
+        processor->setLogicOp((float) newLogicOp);
+
+        if (newLogicOp == 3)
+        {
+            input2Selector->setVisible(false);
+            input2Label->setVisible(false);
+            gate2Button->setVisible(false);
+        }
         else
-            m_logicOp = 1;
+        {
+            input2Selector->setVisible(true);
+            input2Label->setVisible(true);
+            gate2Button->setVisible(true);
+        }
     }
     else if (comboBoxThatHasChanged == outputChans)
     {
         processor->setOutput((float) comboBoxThatHasChanged->getSelectedId()-1);
-        if (comboBoxThatHasChanged->getSelectedId() - 1 > 0)
-            m_outputChan = comboBoxThatHasChanged->getSelectedId() - 1;
-        else
-            m_outputChan = 1;
     }
-
-    if (m_logicOp == 3)
-    {
-        input2Selector->setVisible(false);
-        input2Label->setVisible(false);
-        gate2Button->setVisible(false);
-    }
-    else
-    {
-        input2Selector->setVisible(true);
-        input2Label->setVisible(true);
-        gate2Button->setVisible(true);
-    }
-
 }
 
 void LogicGateEditor::labelTextChanged (Label* labelThatHasChanged)

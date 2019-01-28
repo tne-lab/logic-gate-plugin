@@ -28,7 +28,8 @@
 
 LogicGateEditor::LogicGateEditor(GenericProcessor* parentNode, bool useDefaultParameterEditors=true)
     : GenericEditor(parentNode, useDefaultParameterEditors)
-
+    , m_input1Selected(1)
+    , m_input2Selected(1)
 {
     tabText = "LogicGate";
     desiredWidth = 300;

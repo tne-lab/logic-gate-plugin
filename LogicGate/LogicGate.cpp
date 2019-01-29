@@ -40,13 +40,14 @@
 
 LogicGate::LogicGate()
     : GenericProcessor ("Logic Gate"),
-      logicOp(0),
-      outputChan(0),
-      window(DEF_WINDOW),
-      input1(-1),
-      input2(-1),
-      input1gate(false),
-      input2gate(false)
+      m_logicOp(0),
+      m_outputChan(0),
+      m_window(DEF_WINDOW),
+      m_input1(-1),
+      m_input2(-1),
+      m_input1gate(false),
+      m_input2gate(false),
+      m_pulseDuration(2)
 {
     setProcessorType (PROCESSOR_TYPE_FILTER);
 }
@@ -80,29 +81,29 @@ void LogicGate::handleEvent (const EventChannel* eventInfo, const MidiMessage& e
         const int sourceId      = ttl->getSourceID();
         const int eventChannel  = ttl->getChannel();
 
-        if (input1 != -1)
+        if (m_input1 != -1)
         {
-            EventSources s = sources.getReference (input1);
+            EventSources s = m_sources.getReference (m_input1);
             if (eventId == s.eventIndex && sourceId == s.sourceId
                     && eventChannel == s.channel && state)
             {
                 std::cout << "Received A " << std::endl;
                 A = true;
 
-                if ((input1gate) || (!input1gate && !input2gate))
+                if ((m_input1gate) || (!m_input1gate && !m_input2gate))
                     m_previousTime = Time::currentTimeMillis();
             }
         }
 
-        if (input2 != -1)
+        if (m_input2 != -1)
         {
-            EventSources s = sources.getReference (input2);
+            EventSources s = m_sources.getReference (m_input2);
             if (eventId == s.eventIndex && sourceId == s.sourceId
                     && eventChannel == s.channel && state)
             {
                 std::cout << "Received B " << std::endl;
                 B = true;
-                if ((input2gate) || (!input1gate && !input2gate))
+                if ((m_input2gate) || (!m_input1gate && !m_input2gate))
                     m_previousTime = Time::currentTimeMillis();
             }
         }
@@ -112,31 +113,68 @@ void LogicGate::handleEvent (const EventChannel* eventInfo, const MidiMessage& e
 
 void LogicGate::setInput1(int i1)
 {
-    input1 = i1;
+    m_input1 = i1;
 }
 void LogicGate::setInput2(int i2)
 {
-    input2 = i2;
+    m_input2 = i2;
 }
 void LogicGate::setGate1(bool set)
 {
-    input1gate = set;
+    m_input1gate = set;
 }
 void LogicGate::setGate2(bool set)
 {
-    input2gate = set;
+    m_input2gate = set;
 }
 void LogicGate::setLogicOp(int op)
 {
-    logicOp = op;
+    m_logicOp = op;
 }
 void LogicGate::setOutput(int out)
 {
-    outputChan = out;
+    m_outputChan = out;
 }
 void LogicGate::setWindow(int win)
 {
-    window = win;
+    m_window = win;
+}
+void LogicGate::setTtlDuration(int dur)
+{
+    m_pulseDuration = dur;
+}
+
+int LogicGate::getInput1()
+{
+    return m_input1;
+}
+int LogicGate::getInput2()
+{
+    return m_input2;
+}
+bool LogicGate::getGate1()
+{
+    return m_input1gate;
+}
+bool LogicGate::getGate2()
+{
+    return m_input2gate;
+}
+int LogicGate::getLogicOp()
+{
+    return m_logicOp;
+}
+int LogicGate::getOutput()
+{
+    return m_outputChan;
+}
+int LogicGate::getWindow()
+{
+    return m_window;
+}
+int LogicGate::getTtlDuration()
+{
+    return m_pulseDuration;
 }
 
 void LogicGate::process (AudioSampleBuffer& buffer)
@@ -146,39 +184,35 @@ void LogicGate::process (AudioSampleBuffer& buffer)
     m_currentTime = Time::currentTimeMillis();
     m_timePassed = float(m_currentTime - m_previousTime);
 
-    switch (logicOp)
+    switch (m_logicOp)
     {
     case 0:
         //AND: as soon as AND is true send TTL output
-        if (m_timePassed < window)
+        if (m_timePassed < m_window)
         {
             if (A && B)
             {
                 std::cout << "AND condition satisfied ";
-                int64 timestamp = CoreServices::getGlobalTimestamp();
-                setTimestampAndSamples(timestamp, 0);
-                uint8 ttlData = 1 << outputChan;
-                const EventChannel* chan = getEventChannel(getEventChannelIndex(0, getNodeId()));
-                TTLEventPtr event = TTLEvent::createTTLEvent(chan, timestamp, &ttlData, sizeof(uint8), outputChan);
-                addEvent(chan, event, 0);
+                triggerEvent();
 
-                if ((input1gate == input2gate))
+                if ((m_input1gate == m_input2gate))
                 {
                     std::cout << "resetting input" << std::endl;
                     A = false;
                     B = false;
                 }
-                else if (!input1gate)
+                else if (!m_input1gate)
                 {
                     std::cout << "resetting A" << std::endl;
                     A = false;
                 }
-                else if (!input2gate)
+                else if (!m_input2gate)
                 {
                     std::cout << "resetting B" << std::endl;
                     B = false;
                 }
             }
+            m_previousTime = Time::currentTimeMillis();
         }
         else
         {
@@ -189,17 +223,13 @@ void LogicGate::process (AudioSampleBuffer& buffer)
 
     case 1:
         //OR: if OR is true send TTL at the end of thw window
-        if (m_timePassed > window)
+        if (m_timePassed > m_window)
         {
             if (A || B)
             {
                 std::cout << "OR condition satisfied: resetting input" << std::endl;
-                int64 timestamp = CoreServices::getGlobalTimestamp();
-                setTimestampAndSamples(timestamp, 0);
-                uint8 ttlData = 1 << outputChan;
-                const EventChannel* chan = getEventChannel(getEventChannelIndex(0, getNodeId()));
-                TTLEventPtr event = TTLEvent::createTTLEvent(chan, timestamp, &ttlData, sizeof(uint8), outputChan);
-                addEvent(chan, event, 0);
+                triggerEvent();
+
                 A = false;
                 B = false;
             }
@@ -214,17 +244,12 @@ void LogicGate::process (AudioSampleBuffer& buffer)
 
     case 2:
         //XOR: if XOR is true send TTL at the end of thw window
-        if (m_timePassed > window)
+        if (m_timePassed > m_window)
         {
             if (A != B)
             {
                 std::cout << "XOR condition satisfied: resetting input" << std::endl;
-                int64 timestamp = CoreServices::getGlobalTimestamp();
-                setTimestampAndSamples(timestamp, 0);
-                uint8 ttlData = 1 << outputChan;
-                const EventChannel* chan = getEventChannel(getEventChannelIndex(0, getNodeId()));
-                TTLEventPtr event = TTLEvent::createTTLEvent(chan, timestamp, &ttlData, sizeof(uint8), outputChan);
-                addEvent(chan, event, 0);
+                triggerEvent();
 
                 A = false;
                 B = false;
@@ -245,18 +270,12 @@ void LogicGate::process (AudioSampleBuffer& buffer)
         break;
 
     case 3: //DELAY
-        if (m_timePassed > window)
+        if (m_timePassed > m_window)
         {
             if (A)
             {
                 std::cout << "DELAY A" << std::endl;
-                int64 timestamp = CoreServices::getGlobalTimestamp();
-                setTimestampAndSamples(timestamp, 0);
-                uint8 ttlData = 1 << outputChan;
-                const EventChannel* chan = getEventChannel(getEventChannelIndex(0, getNodeId()));
-                TTLEventPtr event = TTLEvent::createTTLEvent(chan, timestamp, &ttlData, sizeof(uint8), outputChan);
-                addEvent(chan, event, 0);
-
+                triggerEvent();
                 A = false;
             }
             m_previousTime = Time::currentTimeMillis();
@@ -265,86 +284,66 @@ void LogicGate::process (AudioSampleBuffer& buffer)
     }
 }
 
+void LogicGate::triggerEvent()
+{
+    int64 timestamp = CoreServices::getGlobalTimestamp();
+    setTimestampAndSamples(timestamp, 0);
+    uint8 ttlData = 1 << m_outputChan;
+    const EventChannel* chan = getEventChannel(getEventChannelIndex(0, getNodeId()));
+    TTLEventPtr event = TTLEvent::createTTLEvent(chan, timestamp, &ttlData, sizeof(uint8), m_outputChan);
+    addEvent(chan, event, 0);
+
+    int eventDurationSamp = static_cast<int>(ceil(m_pulseDuration / 1000.0f * getSampleRate()));
+    uint8 ttlDataOff = 0;
+    TTLEventPtr eventOff = TTLEvent::createTTLEvent(chan, timestamp + eventDurationSamp, &ttlDataOff, sizeof(uint8), m_outputChan);
+    addEvent(chan, eventOff, 0);
+}
+
 void LogicGate::addEventSource(EventSources s)
 {
-    sources.add (s);
+    m_sources.add (s);
 }
 
 void LogicGate::clearEventSources()
 {
-    sources.clear();
+    m_sources.clear();
 }
 
 
 void LogicGate::saveCustomParametersToXml(XmlElement *parentElement)
 {
-//    XmlElement* mainNode = parentElement->createNewChildElement("LogicGate");
-//    for (int i=0; i<PULSEPALCHANNELS; i++)
-//    {
-//        XmlElement* chan = new XmlElement(String("Channel_")+=String(i+1));
-//        chan->setAttribute("id", i);
-//        chan->setAttribute("biphasic", m_isBiphasic[i]);
-//        chan->setAttribute("phase1", m_phase1Duration[i]);
-//        chan->setAttribute("phase2", m_phase1Duration[i]);
-//        chan->setAttribute("interphase", m_interPhaseInterval[i]);
-//        chan->setAttribute("voltage1", m_phase1Voltage[i]);
-//        chan->setAttribute("voltage2", m_phase2Voltage[i]);
-//        chan->setAttribute("restingvoltage", m_restingVoltage[i]);
-//        chan->setAttribute("interpulse", m_interPulseInterval[i]);
-//        chan->setAttribute("burstduration", m_burstDuration[i]);
-//        chan->setAttribute("interburst", m_interBurstInterval[i]);
-//        chan->setAttribute("trainduration", m_trainDuration[i]);
-//        chan->setAttribute("traindelay", m_trainDelay[i]);
-//        chan->setAttribute("link2trigger1", m_linkTriggerChannel1[i]);
-//        chan->setAttribute("link2trigger2", m_linkTriggerChannel2[i]);
-//        chan->setAttribute("triggermode", m_triggerMode[i]);
-//        mainNode->addChildElement(chan);
-//    }
+    XmlElement* mainNode = parentElement->createNewChildElement("LogicGate");
+
+    mainNode->setAttribute("input1", m_input1);
+    mainNode->setAttribute("input2", m_input2);
+    mainNode->setAttribute("input1gate", m_input1gate);
+    mainNode->setAttribute("input2gate", m_input2gate);
+    mainNode->setAttribute("logicOp", m_logicOp);
+    mainNode->setAttribute("outputChan", m_outputChan);
+    mainNode->setAttribute("window", m_window);
+    mainNode->setAttribute("duration", m_pulseDuration);
+
 }
 
 void LogicGate::loadCustomParametersFromXml ()
 {
-//    if (parametersAsXml != nullptr)
-//    {
-//        forEachXmlChildElement (*parametersAsXml, mainNode)
-//        {
-//            if (mainNode->hasTagName ("LogicGate"))
-//            {
-//                forEachXmlChildElement(*mainNode, chan)
-//                {
-//                    int id = chan->getIntAttribute("id");
-//                    int biphasic = chan->getIntAttribute("biphasic");
-//                    double phase1 = chan->getDoubleAttribute("phase1");
-//                    double phase2 = chan->getDoubleAttribute("phase2");
-//                    double interphase = chan->getDoubleAttribute("interphase");
-//                    double voltage1 = chan->getDoubleAttribute("voltage1");
-//                    double voltage2 = chan->getDoubleAttribute("voltage2");
-//                    double resting = chan->getDoubleAttribute("restingvoltage");
-//                    double interpulse = chan->getDoubleAttribute("interpulse");
-//                    double burst = chan->getDoubleAttribute("burstduration");
-//                    double interburst = chan->getDoubleAttribute("interburst");
-//                    double trainduration = chan->getDoubleAttribute("trainduration");
-//                    double traindelay = chan->getDoubleAttribute("traindelay");
-//                    int link21 = chan->getIntAttribute("link2trigger1");
-//                    int link22 = chan->getIntAttribute("link2trigger2");
-//                    int trigger = chan->getIntAttribute("triggermode");
-//                    m_isBiphasic[id] = biphasic;
-//                    m_phase1Duration[id] = phase1;
-//                    m_phase2Duration[id] = phase2;
-//                    m_interPhaseInterval[id] = interphase;
-//                    m_phase1Voltage[id] = voltage1;
-//                    m_phase2Voltage[id] = voltage2;
-//                    m_restingVoltage[id] = resting;
-//                    m_interPulseInterval[id] = interpulse;
-//                    m_burstDuration[id] = burst;
-//                    m_interBurstInterval[id] = interburst;
-//                    m_trainDuration[id] = trainduration;
-//                    m_trainDelay[id] = traindelay;
-//                    m_linkTriggerChannel1[id] = link21;
-//                    m_linkTriggerChannel2[id] = link22;
-//                    m_triggerMode[id] = trigger;
-//                }
-//            }
-//        }
-//    }
+    if (parametersAsXml != nullptr)
+    {
+        forEachXmlChildElement (*parametersAsXml, mainNode)
+        {
+            if (mainNode->hasTagName ("LogicGate"))
+            {
+                m_input1 = mainNode->getIntAttribute("input1");
+                m_input2 = mainNode->getIntAttribute("input2");
+                m_input1gate = mainNode->getBoolAttribute("input1gate");
+                m_input2gate = mainNode->getBoolAttribute("input2gate");
+                m_logicOp = mainNode->getIntAttribute("logicOp");
+                m_outputChan = mainNode->getIntAttribute("outputChan");
+                m_window = mainNode->getIntAttribute("window");
+                m_pulseDuration = mainNode->getIntAttribute("duration");
+
+                editor->updateSettings();
+            }
+        }
+    }
 }

@@ -95,28 +95,42 @@ public:
     void setLogicOp(int op);
     void setOutput(int out);
     void setWindow(int win);
+    void setTtlDuration(int dur);
+
+    int getInput1();
+    int getInput2();
+    bool getGate1();
+    bool getGate2();
+    int getLogicOp();
+    int getOutput();
+    int getWindow();
+    int getTtlDuration();
 
 protected:
     void createEventChannels() override;
 
 private:
-    int input1;
-    int input2;
-    bool input1gate;
-    bool input2gate;
-    int logicOp;
-    int outputChan;
-    int window;
-    Array<EventSources> sources;
+    int m_input1;
+    int m_input2;
+    bool m_input1gate;
+    bool m_input2gate;
+    int m_logicOp;
+    int m_outputChan;
+    int m_window;
+    Array<EventSources> m_sources;
 
     // Time
     float m_timePassed;
     int64 m_previousTime;
     int64 m_currentTime;
+    int64 m_timeFromTrigger;
+    int m_pulseDuration;
 
     // Conditions
     bool A;
     bool B;
+
+    void triggerEvent();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LogicGate);
 };

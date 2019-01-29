@@ -71,6 +71,9 @@ private:
     ScopedPointer<Label> windowLabel;
     ScopedPointer<Label> windowEditLabel;
 
+    ScopedPointer<Label> durationLabel;
+    ScopedPointer<Label> durationEditLabel;
+
     ScopedPointer<UtilityButton> gate1Button;
     ScopedPointer<UtilityButton> gate2Button;
 

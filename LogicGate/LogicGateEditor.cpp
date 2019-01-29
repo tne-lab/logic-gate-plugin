@@ -28,6 +28,8 @@
 
 LogicGateEditor::LogicGateEditor(GenericProcessor* parentNode, bool useDefaultParameterEditors=true)
     : GenericEditor(parentNode, useDefaultParameterEditors)
+    , m_input1Selected(1)
+    , m_input2Selected(1)
 
 {
     tabText = "LogicGate";
@@ -40,13 +42,13 @@ LogicGateEditor::LogicGateEditor(GenericProcessor* parentNode, bool useDefaultPa
     addAndMakeVisible(input1Selector);
 
     input2Selector = new ComboBox();
-    input2Selector->setBounds(20,70,160,20);
+    input2Selector->setBounds(20,60,160,20);
     input2Selector->addListener(this);
 
     addAndMakeVisible(input2Selector);
 
     logicSelector = new ComboBox();
-    logicSelector->setBounds(220,50,70,20);
+    logicSelector->setBounds(220,50,60,20);
     logicSelector->addListener(this);
 
     logic_op.add("AND");
@@ -63,7 +65,7 @@ LogicGateEditor::LogicGateEditor(GenericProcessor* parentNode, bool useDefaultPa
     outputChans = new ComboBox("Output");
 
     outputChans->setEditableText(false);
-    outputChans->setBounds(220,110,70,20);
+    outputChans->setBounds(220,110,60,20);
     outputChans->addListener(this);
     outputChans->setSelectedId(0);
 
@@ -79,16 +81,14 @@ LogicGateEditor::LogicGateEditor(GenericProcessor* parentNode, bool useDefaultPa
     gate1Button->setRadius(3.0f);
     gate1Button->setBounds(190,30,20,20);
     gate1Button->setClickingTogglesState(true);
-//    gate1Button->triggerClick();
 
     addAndMakeVisible(gate1Button);
 
     gate2Button = new UtilityButton("o", titleFont);
     gate2Button->addListener(this);
     gate2Button->setRadius(3.0f);
-    gate2Button->setBounds(190,70,20,20);
+    gate2Button->setBounds(190,60,20,20);
     gate2Button->setClickingTogglesState(true);
-//    gate2Button->triggerClick();
 
     addAndMakeVisible(gate2Button);
 
@@ -97,7 +97,7 @@ LogicGateEditor::LogicGateEditor(GenericProcessor* parentNode, bool useDefaultPa
     addAndMakeVisible (input1Label);
 
     input2Label = new Label ("i2", "B");
-    input2Label->setBounds (0,70,20,20);
+    input2Label->setBounds (0,60,20,20);
     addAndMakeVisible (input2Label);
 
     logicLabel = new Label ("log", "OPERATOR");
@@ -109,11 +109,11 @@ LogicGateEditor::LogicGateEditor(GenericProcessor* parentNode, bool useDefaultPa
     addAndMakeVisible (outputLabel);
 
     windowLabel = new Label ("window", "Window (ms):");
-    windowLabel->setBounds (20,110,115,20);
+    windowLabel->setBounds (20,85,115,20);
     addAndMakeVisible (windowLabel);
 
     windowEditLabel = new Label ("window_edit", String(DEF_WINDOW));
-    windowEditLabel->setBounds (140,110,70,20);
+    windowEditLabel->setBounds (140,85,70,20);
     windowEditLabel->setFont (Font ("Default", 15, Font::plain));
     windowEditLabel->setColour (Label::textColourId, Colours::white);
     windowEditLabel->setColour (Label::backgroundColourId, Colours::grey);
@@ -121,6 +121,18 @@ LogicGateEditor::LogicGateEditor(GenericProcessor* parentNode, bool useDefaultPa
     windowEditLabel->addListener (this);
     addAndMakeVisible (windowEditLabel);
 
+    durationLabel = new Label ("duration", "Duration (ms):");
+    durationLabel->setBounds (20,110,115,20);
+    addAndMakeVisible (durationLabel);
+
+    durationEditLabel = new Label ("duration_edit", String(2));
+    durationEditLabel->setBounds (140,110,70,20);
+    durationEditLabel->setFont (Font ("Default", 15, Font::plain));
+    durationEditLabel->setColour (Label::textColourId, Colours::white);
+    durationEditLabel->setColour (Label::backgroundColourId, Colours::grey);
+    durationEditLabel->setEditable (true);
+    durationEditLabel->addListener (this);
+    addAndMakeVisible (durationEditLabel);
 }
 
 
@@ -173,20 +185,37 @@ void LogicGateEditor::updateSettings()
         }
     }
 
+    LogicGate* p = (LogicGate*) getProcessor();
+    m_input1Selected = p->getInput1() + 2; // first is select
+    m_input2Selected = p->getInput2() + 2;
+    m_logicOp = p->getLogicOp() + 1;
+    m_outputChan = p->getOutput() + 1;
+
+    windowEditLabel->setText(String(p->getWindow()), dontSendNotification);
+    durationEditLabel->setText(String(p->getTtlDuration()), dontSendNotification);
+
+    if (p->getGate1())
+        if (!gate1Button->getState())
+            gate1Button->setToggleState(true, true);
+    if (p->getGate2())
+        if (!gate2Button->getState())
+            gate2Button->setToggleState(true, true);
+
     if (m_input1Selected > input1Selector->getNumItems())
-    {
         m_input1Selected = input1Selector->getNumItems();
-        input1Selector->setSelectedId(m_input1Selected);
-    }
-    else
-        input1Selector->setSelectedId(m_input1Selected);
+    input1Selector->setSelectedId(m_input1Selected);
+
     if (m_input2Selected > input2Selector->getNumItems())
-    {
         m_input2Selected = input2Selector->getNumItems();
-        input2Selector->setSelectedId(m_input2Selected);
-    }
-    else
-        input2Selector->setSelectedId(m_input2Selected);
+    input2Selector->setSelectedId(m_input2Selected);
+
+    if (m_logicOp > logicSelector->getNumItems())
+        m_logicOp = logicSelector->getNumItems();
+    logicSelector->setSelectedId(m_logicOp);
+
+    if (m_outputChan > outputChans->getNumItems())
+        m_outputChan = outputChans->getNumItems();
+    outputChans->setSelectedId(m_outputChan);
 }
 
 void LogicGateEditor::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
@@ -195,66 +224,80 @@ void LogicGateEditor::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
     if (comboBoxThatHasChanged == input1Selector)
     {
         processor->setInput1(comboBoxThatHasChanged->getSelectedId() - 2);
-        if (comboBoxThatHasChanged->getSelectedId() - 1 > 0)
-            m_input1Selected = comboBoxThatHasChanged->getSelectedId() - 1;
+        if (comboBoxThatHasChanged->getSelectedId() > 0)
+            m_input1Selected = comboBoxThatHasChanged->getSelectedId();
         else
             m_input1Selected = 1;
     }
     else if (comboBoxThatHasChanged == input2Selector)
     {
         processor->setInput2(comboBoxThatHasChanged->getSelectedId() - 2);
-        if (comboBoxThatHasChanged->getSelectedId() - 1 > 0)
-            m_input2Selected = comboBoxThatHasChanged->getSelectedId() - 1;
+        if (comboBoxThatHasChanged->getSelectedId() > 0)
+            m_input2Selected = comboBoxThatHasChanged->getSelectedId();
         else
             m_input2Selected = 1;
     }
     else if (comboBoxThatHasChanged == logicSelector)
     {
-        processor->setLogicOp((float) comboBoxThatHasChanged->getSelectedId()-1);
-        if (comboBoxThatHasChanged->getSelectedId() - 1 > 0)
-            m_logicOp = comboBoxThatHasChanged->getSelectedId() - 1;
+        m_logicOp = comboBoxThatHasChanged->getSelectedId() - 1;
+        processor->setLogicOp(m_logicOp);
+
+        if (m_logicOp == 3)
+        {
+            input2Selector->setVisible(false);
+            input2Label->setVisible(false);
+            gate2Button->setVisible(false);
+        }
         else
-            m_logicOp = 1;
+        {
+            input2Selector->setVisible(true);
+            input2Label->setVisible(true);
+            gate2Button->setVisible(true);
+        }
     }
     else if (comboBoxThatHasChanged == outputChans)
     {
-        processor->setOutput((float) comboBoxThatHasChanged->getSelectedId()-1);
-        if (comboBoxThatHasChanged->getSelectedId() - 1 > 0)
-            m_outputChan = comboBoxThatHasChanged->getSelectedId() - 1;
-        else
-            m_outputChan = 1;
-    }
-
-    if (m_logicOp == 3)
-    {
-        input2Selector->setVisible(false);
-        input2Label->setVisible(false);
-        gate2Button->setVisible(false);
-    }
-    else
-    {
-        input2Selector->setVisible(true);
-        input2Label->setVisible(true);
-        gate2Button->setVisible(true);
+        m_outputChan = comboBoxThatHasChanged->getSelectedId() - 1;
+        processor->setOutput((int) m_outputChan);
     }
 
 }
 
 void LogicGateEditor::labelTextChanged (Label* labelThatHasChanged)
 {
-    Value val = labelThatHasChanged->getTextValue();
-    int value = int(val.getValue()); //only multiple of 100us
-    if (value>=0)
+    if (labelThatHasChanged == windowEditLabel)
     {
-        LogicGate* processor = (LogicGate*) getProcessor();
-        processor->setWindow(value);
-        labelThatHasChanged->setText(String(value), dontSendNotification);
+        Value val = labelThatHasChanged->getTextValue();
+        int value = int(val.getValue()); //only multiple of 100us
+        if (value>=0)
+        {
+            LogicGate* processor = (LogicGate*) getProcessor();
+            processor->setWindow(value);
+            labelThatHasChanged->setText(String(value), dontSendNotification);
+        }
+        else
+        {
+            CoreServices::sendStatusMessage("Selected values must be greater or equal than 0!");
+            labelThatHasChanged->setText("", dontSendNotification);
+        }
     }
-    else
+    else if (labelThatHasChanged == durationEditLabel)
     {
-        CoreServices::sendStatusMessage("Selected values must be greater or equal than 0!");
-        labelThatHasChanged->setText("", dontSendNotification);
+        Value val = labelThatHasChanged->getTextValue();
+        int value = int(val.getValue()); //only multiple of 100us
+        if (value>=0)
+        {
+            LogicGate* processor = (LogicGate*) getProcessor();
+            processor->setTtlDuration(value);
+            labelThatHasChanged->setText(String(value), dontSendNotification);
+        }
+        else
+        {
+            CoreServices::sendStatusMessage("Selected values must be greater or equal than 0!");
+            labelThatHasChanged->setText("", dontSendNotification);
+        }
     }
+
 }
 
 void LogicGateEditor::buttonEvent(Button* button)
@@ -281,33 +324,10 @@ void LogicGateEditor::buttonEvent(Button* button)
 void LogicGateEditor::saveCustomParameters(XmlElement* xml)
 {
 
-//    xml->setAttribute("Type", "LogicGateEditor");
-
-//    for (int i = 0; i < PULSEPALCHANNELS; i++)
-//    {
-//        XmlElement* outputXml = xml->createNewChildElement("OUTPUTCHANNEL");
-//        outputXml->setAttribute("Number", i);
-//        outputXml->setAttribute("Trigger",channelTriggerInterfaces[i]->getTriggerChannel());
-//        outputXml->setAttribute("Gate",channelTriggerInterfaces[i]->getGateChannel());
-//    }
-
-
 }
 
 
 void LogicGateEditor::loadCustomParameters(XmlElement* xml)
 {
 
-//    forEachXmlChildElement(*xml, xmlNode)
-//    {
-//        if (xmlNode->hasTagName("OUTPUTCHANNEL"))
-//        {
-
-//            int chNum = xmlNode->getIntAttribute("Number");
-
-//            channelTriggerInterfaces[chNum]->setTriggerChannel(xmlNode->getIntAttribute("Trigger"));
-//            channelTriggerInterfaces[chNum]->setGateChannel(xmlNode->getIntAttribute("Gate"));
-
-//        }
-//    }
 }

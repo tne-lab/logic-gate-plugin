@@ -55,8 +55,6 @@ private:
 
     int m_input1Selected;
     int m_input2Selected;
-    int m_logicOp;
-    int m_outputChan;
 
     ScopedPointer<ComboBox> logicSelector;
     ScopedPointer<ComboBox> input1Selector;

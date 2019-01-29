@@ -21,16 +21,15 @@
 
 */
 
-#include <stdio.h>
 #include "LogicGateEditor.h"
-
 #include "LogicGate.h"
 
 LogicGateEditor::LogicGateEditor(GenericProcessor* parentNode, bool useDefaultParameterEditors=true)
     : GenericEditor(parentNode, useDefaultParameterEditors)
     , m_input1Selected(1)
     , m_input2Selected(1)
-
+    , m_logicOp(1)
+    , m_outputChan(1)
 {
     tabText = "LogicGate";
     desiredWidth = 300;
@@ -58,7 +57,7 @@ LogicGateEditor::LogicGateEditor(GenericProcessor* parentNode, bool useDefaultPa
 
     for (int i = 0; i < 4; i++)
         logicSelector->addItem(logic_op[i], i+1);
-    logicSelector->setSelectedId(1, dontSendNotification);
+    logicSelector->setSelectedId(m_logicOp, dontSendNotification);
 
     addAndMakeVisible(logicSelector);
 
@@ -67,12 +66,11 @@ LogicGateEditor::LogicGateEditor(GenericProcessor* parentNode, bool useDefaultPa
     outputChans->setEditableText(false);
     outputChans->setBounds(220,110,60,20);
     outputChans->addListener(this);
-    outputChans->setSelectedId(0);
 
     for (int i=1; i<9; i++)
         outputChans->addItem(String(i), i);
 
-    outputChans->setSelectedId(1, dontSendNotification);
+    outputChans->setSelectedId(m_outputChan, dontSendNotification);
     addAndMakeVisible(outputChans);
 
 
@@ -196,10 +194,10 @@ void LogicGateEditor::updateSettings()
 
     if (p->getGate1())
         if (!gate1Button->getState())
-            gate1Button->setToggleState(true, true);
+            gate1Button->triggerClick();
     if (p->getGate2())
         if (!gate2Button->getState())
-            gate2Button->setToggleState(true, true);
+            gate2Button->triggerClick();
 
     if (m_input1Selected > input1Selector->getNumItems())
         m_input1Selected = input1Selector->getNumItems();
@@ -260,7 +258,6 @@ void LogicGateEditor::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
         m_outputChan = comboBoxThatHasChanged->getSelectedId() - 1;
         processor->setOutput((int) m_outputChan);
     }
-
 }
 
 void LogicGateEditor::labelTextChanged (Label* labelThatHasChanged)
@@ -302,7 +299,6 @@ void LogicGateEditor::labelTextChanged (Label* labelThatHasChanged)
 
 void LogicGateEditor::buttonEvent(Button* button)
 {
-    // tODO implement gate
     LogicGate* processor = (LogicGate*) getProcessor();
     if (button == gate1Button)
     {

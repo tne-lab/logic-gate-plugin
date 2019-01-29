@@ -51,7 +51,6 @@ public:
 
 private:
     Array<String> logic_op;
-//    String logic_op[4] = {"AND", "OR", "XOR", "DELAY"};
 
     int m_input1Selected;
     int m_input2Selected;

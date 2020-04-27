@@ -64,11 +64,34 @@ AudioProcessorEditor* LogicGate::createEditor()
 
 void LogicGate::createEventChannels()
 {
+    // grab a channel to look at source
+    const DataChannel* in = getDataChannel(1);
+
+    if (!in)
+    {
+        eventChannelPtr = nullptr;
+        return;
+    }
+
     EventChannel* ev = new EventChannel(EventChannel::TTL, 8, 1, CoreServices::getGlobalSampleRate(), this);
     ev->setName("Logic Gate TTL output" );
     ev->setDescription("Triggers when logic operator is satisfied.");
     ev->setIdentifier ("dataderived.logicgate.trigger");
-    eventChannelArray.add (ev);
+
+    // metadata storing source data channel
+
+    MetaDataDescriptor sourceChanDesc(MetaDataDescriptor::UINT16, 3, "Source Channel",
+        "Index at its source, Source processor ID and Sub Processor index of the channel that triggers this event", "source.channel.identifier.full");
+    MetaDataValue sourceChanVal(sourceChanDesc);
+    uint16 sourceInfo[3];
+    sourceInfo[0] = in->getSourceIndex();
+    sourceInfo[1] = in->getSourceNodeID();
+    sourceInfo[2] = in->getSubProcessorIdx();
+    sourceChanVal.setValue(static_cast<const uint16*>(sourceInfo));
+    ev->addMetaData(sourceChanDesc, sourceChanVal);
+
+
+    eventChannelPtr = eventChannelArray.add (ev);
 }
 
 void LogicGate::handleEvent (const EventChannel* eventInfo, const MidiMessage& event, int sampleNum)
@@ -286,17 +309,18 @@ void LogicGate::process (AudioSampleBuffer& buffer)
 
 void LogicGate::triggerEvent()
 {
+    MetaDataValueArray mdArray;
     int64 timestamp = CoreServices::getGlobalTimestamp();
-    setTimestampAndSamples(timestamp, 0);
+    //setTimestampAndSamples(timestamp, 0);
     uint8 ttlData = 1 << m_outputChan;
-    const EventChannel* chan = getEventChannel(getEventChannelIndex(0, getNodeId()));
-    TTLEventPtr event = TTLEvent::createTTLEvent(chan, timestamp, &ttlData, sizeof(uint8), m_outputChan);
-    addEvent(chan, event, 0);
+    //const EventChannel* chan = getEventChannel(getEventChannelIndex(0, getNodeId()));
+    TTLEventPtr event = TTLEvent::createTTLEvent(eventChannelPtr, timestamp, &ttlData, sizeof(uint8), mdArray, m_outputChan);
+    addEvent(eventChannelPtr, event, 0);
 
     int eventDurationSamp = static_cast<int>(ceil(m_pulseDuration / 1000.0f * getSampleRate()));
     uint8 ttlDataOff = 0;
-    TTLEventPtr eventOff = TTLEvent::createTTLEvent(chan, timestamp + eventDurationSamp, &ttlDataOff, sizeof(uint8), m_outputChan);
-    addEvent(chan, eventOff, 0);
+    TTLEventPtr eventOff = TTLEvent::createTTLEvent(eventChannelPtr, timestamp + eventDurationSamp, &ttlDataOff, sizeof(uint8), mdArray, m_outputChan);
+    addEvent(eventChannelPtr, eventOff, eventDurationSamp);
 }
 
 void LogicGate::addEventSource(EventSources s)
@@ -308,6 +332,7 @@ void LogicGate::clearEventSources()
 {
     m_sources.clear();
 }
+
 
 
 void LogicGate::saveCustomParametersToXml(XmlElement *parentElement)

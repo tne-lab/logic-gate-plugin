@@ -118,6 +118,7 @@ private:
     int m_outputChan;
     int m_window;
     Array<EventSources> m_sources;
+    EventChannel* eventChannelPtr;
 
     // Time
     float m_timePassed;

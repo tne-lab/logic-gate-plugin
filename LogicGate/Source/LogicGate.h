@@ -131,7 +131,14 @@ private:
     bool A;
     bool B;
 
+    // Save TS
+    int64 A_ts;
+    int64 B_ts;
+
+
     void triggerEvent();
+    TTLEventPtr turnOffEvent;
+    int nSamples;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LogicGate);
 };

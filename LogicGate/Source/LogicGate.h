@@ -129,7 +129,13 @@ private:
 
     // Conditions
     bool A;
+    bool A_off;
     bool B;
+    bool B_off;
+    bool isEventOn;
+    bool hasReset;
+    bool A_thisBuf;
+    bool B_thisBuf;
 
     // Save TS
     int64 A_ts;

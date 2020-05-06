@@ -48,10 +48,12 @@ LogicGate::LogicGate()
     m_input1gate(false),
     m_input2gate(false),
     m_pulseDuration(2),
-    A_ts(0),
-    B_ts(0),
+    A_ts(-1),
+    B_ts(-1),
     turnOffEvent(nullptr),
-    nSamples(0)
+    nSamples(0),
+    isEventOn(false),
+    hasReset(true)
 {
     setProcessorType (PROCESSOR_TYPE_FILTER);
 }
@@ -118,9 +120,24 @@ void LogicGate::handleEvent (const EventChannel* eventInfo, const MidiMessage& e
                 std::cout << "Received A " << std::endl;
                 A = true;
                 A_ts = ts;
+                A_thisBuf = true;
 
                 if ((m_input1gate) || (!m_input1gate && !m_input2gate))
                     m_previousTime = Time::currentTimeMillis();
+            }
+            if (eventId == s.eventIndex && sourceId == s.sourceId
+                && eventChannel == s.channel && !state)
+            {
+                std::cout << "off A " << std::endl;
+                if (A_thisBuf)
+                {
+                    hasReset = true;
+                }
+                if (isEventOn)
+                {
+                    A = false;
+                    hasReset = true;
+                }  
             }
         }
 
@@ -133,9 +150,24 @@ void LogicGate::handleEvent (const EventChannel* eventInfo, const MidiMessage& e
                 std::cout << "Received B " << std::endl;
                 B = true;
                 B_ts = ts;
+                B_thisBuf = true;
 
                 if ((m_input2gate) || (!m_input1gate && !m_input2gate))
                     m_previousTime = Time::currentTimeMillis();
+            }
+            if (eventId == s.eventIndex && sourceId == s.sourceId
+                && eventChannel == s.channel && !state)
+            {
+                std::cout << "off B " << std::endl;
+                if (B_thisBuf)
+                {
+                    hasReset = true;
+                }
+                if (isEventOn)
+                {
+                    B = false;
+                    hasReset = true;
+                }
             }
         }
     }
@@ -210,6 +242,9 @@ int LogicGate::getTtlDuration()
 
 void LogicGate::process (AudioSampleBuffer& buffer)
 {
+    A_thisBuf = false;
+    B_thisBuf = false;
+
     checkForEvents ();
     // implement logic
     m_currentTime = Time::currentTimeMillis();
@@ -223,19 +258,34 @@ void LogicGate::process (AudioSampleBuffer& buffer)
     {
         addEvent(eventChannelPtr, turnOffEvent, turnoffOffset);
         turnOffEvent = nullptr;
+        isEventOn = false;
     }
 
     switch (m_logicOp)
     {
     case 0:
         //AND: as soon as AND is true send TTL output
-        if (m_timePassed < m_window)
-        {
-            if (A && B)
+        //if (m_timePassed < m_window)
+        //{
+        std::cout << "A: " << A << " && B: " << B << "HasReset: " << hasReset << " && iseventOn: " << isEventOn << std::endl;
+            if (A && B && hasReset && !isEventOn)
             {
                 std::cout << "AND condition satisfied ";
                 triggerEvent();
+                
+                hasReset = false;
 
+                if (A_thisBuf)
+                {
+                    A = false;
+                    hasReset = true;
+                }
+                if (B_thisBuf)
+                {
+                    B = false;
+                    hasReset = true;
+                }
+                /*
                 if ((m_input1gate == m_input2gate))
                 {
                     std::cout << "resetting input" << std::endl;
@@ -251,15 +301,21 @@ void LogicGate::process (AudioSampleBuffer& buffer)
                 {
                     std::cout << "resetting B" << std::endl;
                     B = false;
-                }
+                }*/
             }
-            m_previousTime = Time::currentTimeMillis();
-        }
-        else
-        {
-            A = false;
-            B = false;
-        }
+            else if ((A_thisBuf || B_thisBuf) && hasReset)
+            {
+                A = false;
+                B = false;
+            }
+            
+            //m_previousTime = Time::currentTimeMillis();
+        //}
+        //else
+        //{
+        //    A = false;
+        //    B = false;
+        //}
         break;
 
     case 1:
@@ -328,6 +384,7 @@ void LogicGate::process (AudioSampleBuffer& buffer)
 void LogicGate::triggerEvent()
 {
     // On event
+    isEventOn = true;
     int64 ts;
     A_ts > B_ts ? ts = A_ts : ts = B_ts; // which event happened later? Save ts as start of event.
     int64 bufferTs = CoreServices::getGlobalTimestamp();
@@ -348,6 +405,7 @@ void LogicGate::triggerEvent()
     {
         // add event now
         addEvent(eventChannelPtr, eventOff, tsOffsetOff);
+        isEventOn = false;
     }
     else
     {
